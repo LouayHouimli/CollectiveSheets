@@ -88,6 +88,42 @@ func main() {
 		ctx.JSON(http.StatusCreated, newSheet)
 
 	})
+	router.PUT("/sheets/:id", func(ctx *gin.Context) {
+		sheetID := ctx.Param("id")
+		ID, err := strconv.Atoi(sheetID)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+			return
+		}
+
+		var existingSheet Sheet
+		result := db.First(&existingSheet, ID)
+		if result.Error != nil {
+			if result.Error == gorm.ErrRecordNotFound {
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "Sheet not found"})
+			} else {
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+			}
+			return
+		}
+
+		var updatedData Sheet
+		if err := ctx.ShouldBindJSON(&updatedData); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+			return
+		}
+
+		existingSheet.Title = updatedData.Title
+		existingSheet.Description = updatedData.Description
+
+		if err := db.Save(&existingSheet).Error; err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update sheet"})
+			return
+		}
+
+		ctx.JSON(http.StatusOK, existingSheet)
+	})
+
 	router.DELETE("/sheets/:id", func(ctx *gin.Context) {
 		sheetID := ctx.Param("id")
 		ID, err := strconv.Atoi(sheetID)
